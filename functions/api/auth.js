@@ -24,12 +24,29 @@ export async function onRequestPost(context) {
 
     const response = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'OctopusDashboard/1.0',
+        'Accept': 'application/json'
+      },
       body: JSON.stringify({
         query: authQuery,
         variables: { email, password }
       })
     });
+
+    // Check if response is OK and JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.log('Non-JSON response:', response.status, text.substring(0, 500));
+      return new Response(JSON.stringify({
+        error: `API returned non-JSON response (status ${response.status})`
+      }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     const data = await response.json();
 
