@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Octopus Energy Germany - Smart Meter Live Data</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            color: #ff69b4;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #aaa;
+        }
+
+        .login-form {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 400px;
+            margin: 0 auto 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .login-form.hidden {
+            display: none;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .form-group input::placeholder {
+            color: #888;
+        }
+
+        .form-group input:focus {
+            outline: 2px solid #ff69b4;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #ff69b4, #ff1493);
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 105, 180, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff4444;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #ff6666;
+        }
+
+        .info-message {
+            background: rgba(255, 165, 0, 0.2);
+            border: 1px solid #ffa500;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #ffcc66;
+            text-align: center;
+        }
+
+        .debug-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.visible {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-card h3 {
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ff69b4;
+        }
+
+        .stat-card .unit {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .stat-card.low .value { color: #4ade80; }
+        .stat-card.high .value { color: #f87171; }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-container h2 {
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .data-table {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-x: auto;
+        }
+
+        .data-table h2 {
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            color: #ff69b4;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .consumption-low { color: #4ade80; }
+        .consumption-mid { color: #fbbf24; }
+        .consumption-high { color: #f87171; }
+
+        .current-time {
+            background: rgba(255, 105, 180, 0.2);
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 2px solid #ff69b4;
+            margin-top: 20px;
+            max-width: 200px;
+        }
+
+        .refresh-info {
+            text-align: center;
+            color: #888;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #ff69b4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .date-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .date-selector input {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .date-selector button {
+            width: auto;
+            padding: 10px 20px;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .toggle-btn {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: auto;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, #ff69b4, #ff1493);
+            color: #fff;
+        }
+
+        .tariff-breakdown {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .tariff-breakdown h2 {
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .tariff-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .tariff-card {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid;
+        }
+
+        .tariff-card h3 {
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+
+        .tariff-cost {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .tariff-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .tariff-rate {
+            opacity: 0.7;
+        }
+
+        .tariff-low {
+            border-color: #4ade80;
+        }
+        .tariff-low .tariff-cost { color: #4ade80; }
+
+        .tariff-standard {
+            border-color: #fbbf24;
+        }
+        .tariff-standard .tariff-cost { color: #fbbf24; }
+
+        .tariff-high {
+            border-color: #f87171;
+        }
+        .tariff-high .tariff-cost { color: #f87171; }
+
+        .account-selector {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            margin: 0 auto 30px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        .account-selector.hidden {
+            display: none;
+        }
+
+        .account-selector h2 {
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .account-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .account-option {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .account-option:hover {
+            border-color: #ff69b4;
+            background: rgba(255, 105, 180, 0.1);
+        }
+
+        .account-option .account-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .account-option .account-status {
+            font-size: 0.9rem;
+            color: #4ade80;
+            text-transform: capitalize;
+        }
+
+        .account-option .account-status.inactive {
+            color: #f87171;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Octopus Energy Germany</h1>
+            <p>Smart Meter Consumption Data · Heat Tariff</p>
+        </header>
+
+        <div class="login-form" id="loginForm">
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="your.email@example.com" required onkeydown="if(event.key === 'Enter') document.getElementById('password').focus()">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Your password" required onkeydown="if(event.key === 'Enter') login()">
+            </div>
+
+            <button id="loginBtn" onclick="login()">Login</button>
+
+            <div id="debugPanel" class="debug-panel" style="display: none;"></div>
+        </div>
+
+        <div class="account-selector hidden" id="accountSelector">
+            <h2>Select Account</h2>
+            <div id="accountList" class="account-list"></div>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Loading smart meter data...</p>
+            </div>
+
+            <div id="content" style="display: none;">
+                <div class="date-selector">
+                    <div class="view-toggle">
+                        <button id="dailyBtn" class="toggle-btn active" onclick="setViewMode('daily')">Daily</button>
+                        <button id="monthlyBtn" class="toggle-btn" onclick="setViewMode('monthly')">Monthly</button>
+                    </div>
+                    <input type="date" id="selectedDate">
+                    <input type="month" id="selectedMonth" style="display: none;">
+                    <button onclick="fetchData()">Load Data</button>
+                </div>
+                <div id="infoMessage" class="info-message" style="display: none;"></div>
+                <div id="progressMessage" class="info-message" style="display: none;"></div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Consumption</h3>
+                        <div class="value" id="totalConsumption">--</div>
+                        <div class="unit">kWh</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Cost</h3>
+                        <div class="value" id="totalCost">--</div>
+                        <div class="unit">EUR</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Average/kWh</h3>
+                        <div class="value" id="avgPrice">--</div>
+                        <div class="unit">ct/kWh</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Last Interval</h3>
+                        <div class="value" id="currentConsumption">--</div>
+                        <div class="unit">kWh</div>
+                    </div>
+                </div>
+
+                <div class="tariff-breakdown">
+                    <h2>Tariff Overview</h2>
+                    <div class="tariff-grid">
+                        <div class="tariff-card tariff-low">
+                            <h3>Low (2-6 & 12-16)</h3>
+                            <div class="tariff-cost" id="lowCost">-- EUR</div>
+                            <div class="tariff-stats">
+                                <span id="lowConsumption">-- kWh</span>
+                                <span class="tariff-rate">18.49 ct/kWh</span>
+                            </div>
+                        </div>
+                        <div class="tariff-card tariff-standard">
+                            <h3>Standard (Other)</h3>
+                            <div class="tariff-cost" id="standardCost">-- EUR</div>
+                            <div class="tariff-stats">
+                                <span id="standardConsumption">-- kWh</span>
+                                <span class="tariff-rate">26.49 ct/kWh</span>
+                            </div>
+                        </div>
+                        <div class="tariff-card tariff-high">
+                            <h3>High (18-21)</h3>
+                            <div class="tariff-cost" id="highCost">-- EUR</div>
+                            <div class="tariff-stats">
+                                <span id="highConsumption">-- kWh</span>
+                                <span class="tariff-rate">30.49 ct/kWh</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h2>Consumption History</h2>
+                    <canvas id="consumptionChart"></canvas>
+                </div>
+
+                <div class="data-table">
+                    <h2>All Readings (15-min intervals)</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Consumption</th>
+                                <th>Tariff</th>
+                                <th>Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class="logout-btn" onclick="logout()">Logout</button>
+                <p class="refresh-info">Last update: <span id="lastUpdate">--</span></p>
+            </div>
+
+            <div id="dashboardDebug" class="debug-panel" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let authToken = null;
+        let consumptionChart = null;
+        let accountData = null;
+        let selectedAccountNumber = null;
+
+        // Debug mode - set to true to see API responses
+        const DEBUG = false;
+
+        // Tariff pricing (ct/kWh) - loaded from server config
+        let TARIFF = {
+            low: { price: null, label: 'Low', color: '#4ade80' },           // 2-6 and 12-16
+            high: { price: null, label: 'High', color: '#f87171' },         // 18-21
+            standard: { price: null, label: 'Standard', color: '#fbbf24' }  // rest of day
+        };
+        let configLoaded = false;
+
+        async function loadConfig() {
+            try {
+                const response = await fetch(`${API_BASE}/config`);
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                if (data.tariff) {
+                    TARIFF.low.price = data.tariff.low;
+                    TARIFF.standard.price = data.tariff.standard;
+                    TARIFF.high.price = data.tariff.high;
+                    configLoaded = true;
+                    updateTariffDisplay();
+                }
+            } catch (error) {
+                showConfigError(error.message || 'Could not load tariff configuration');
+            }
+        }
+
+        function showConfigError(message) {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('visible');
+
+            const container = document.querySelector('.container');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.style.maxWidth = '500px';
+            errorDiv.style.margin = '0 auto';
+            errorDiv.innerHTML = `<strong>Configuration error:</strong><br>${message}`;
+            container.appendChild(errorDiv);
+        }
+
+        function updateTariffDisplay() {
+            // Update the tariff rate labels in the UI
+            const lowRate = document.querySelector('.tariff-card.tariff-low .tariff-rate');
+            const stdRate = document.querySelector('.tariff-card.tariff-standard .tariff-rate');
+            const highRate = document.querySelector('.tariff-card.tariff-high .tariff-rate');
+            if (lowRate) lowRate.textContent = `${TARIFF.low.price.toFixed(2)} ct/kWh`;
+            if (stdRate) stdRate.textContent = `${TARIFF.standard.price.toFixed(2)} ct/kWh`;
+            if (highRate) highRate.textContent = `${TARIFF.high.price.toFixed(2)} ct/kWh`;
+        }
+
+        function getPriceTier(date) {
+            const hour = new Date(date).getHours();
+            // Low: 2-6 (02:00-05:59) and 12-16 (12:00-15:59)
+            if ((hour >= 2 && hour < 6) || (hour >= 12 && hour < 16)) {
+                return 'low';
+            }
+            // High: 18-21 (18:00-20:59)
+            if (hour >= 18 && hour < 21) {
+                return 'high';
+            }
+            // Standard: everything else
+            return 'standard';
+        }
+
+        function debug(panel, message) {
+            if (!DEBUG) return;
+            const el = document.getElementById(panel);
+            el.style.display = 'block';
+            el.textContent = typeof message === 'object' ? JSON.stringify(message, null, 2) : message;
+        }
+
+        let viewMode = 'daily'; // 'daily' or 'monthly'
+
+        // Set default date to yesterday (data is ~1 day delayed)
+        function getYesterday() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            return yesterday.toISOString().split('T')[0];
+        }
+
+        function getCurrentMonth() {
+            const now = new Date();
+            return now.toISOString().slice(0, 7); // YYYY-MM format
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('dailyBtn').classList.toggle('active', mode === 'daily');
+            document.getElementById('monthlyBtn').classList.toggle('active', mode === 'monthly');
+            document.getElementById('selectedDate').style.display = mode === 'daily' ? 'block' : 'none';
+            document.getElementById('selectedMonth').style.display = mode === 'monthly' ? 'block' : 'none';
+        }
+
+        function fetchData() {
+            if (viewMode === 'daily') {
+                fetchMeterData();
+            } else {
+                fetchMonthlyData();
+            }
+        }
+
+        window.onload = async function() {
+            // Load tariff config from server
+            await loadConfig();
+
+            // Stop if config failed to load
+            if (!configLoaded) return;
+
+            // Always default to yesterday for daily, current month for monthly
+            document.getElementById('selectedDate').value = getYesterday();
+            document.getElementById('selectedMonth').value = getCurrentMonth();
+
+            const savedToken = sessionStorage.getItem('octopusToken');
+            const savedAccount = sessionStorage.getItem('octopusAccount');
+            if (savedToken && savedAccount) {
+                authToken = savedToken;
+                selectedAccountNumber = savedAccount;
+                showDashboard();
+                fetchAccountInfo().then(() => fetchData());
+            } else if (savedToken) {
+                authToken = savedToken;
+                fetchAccounts();
+            }
+        };
+
+        async function fetchAccounts() {
+            try {
+                const response = await fetch(`${API_BASE}/accounts`, {
+                    method: 'GET',
+                    headers: { 'Authorization': authToken }
+                });
+
+                const data = await response.json();
+                debug('debugPanel', { step: 'fetchAccounts', response: data });
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                const accounts = data.accounts || [];
+                if (accounts.length === 0) {
+                    throw new Error('No accounts found.');
+                }
+
+                if (accounts.length === 1) {
+                    // Auto-select if only one account
+                    selectAccount(accounts[0].number);
+                } else {
+                    showAccountSelector(accounts);
+                }
+
+            } catch (error) {
+                showError(error.message);
+                debug('debugPanel', { error: error.message });
+            }
+        }
+
+        function showAccountSelector(accounts) {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('accountSelector').classList.remove('hidden');
+            document.getElementById('dashboard').classList.remove('visible');
+
+            const accountList = document.getElementById('accountList');
+            accountList.innerHTML = '';
+
+            accounts.forEach(account => {
+                const option = document.createElement('div');
+                option.className = 'account-option';
+                option.onclick = () => selectAccount(account.number);
+
+                const statusClass = account.status === 'ACTIVE' ? '' : 'inactive';
+                option.innerHTML = `
+                    <span class="account-number">${account.number}</span>
+                    <span class="account-status ${statusClass}">${account.status}</span>
+                `;
+
+                accountList.appendChild(option);
+            });
+        }
+
+        async function selectAccount(accountNumber) {
+            selectedAccountNumber = accountNumber;
+            sessionStorage.setItem('octopusAccount', accountNumber);
+
+            document.getElementById('accountSelector').classList.add('hidden');
+            showDashboard();
+
+            try {
+                await fetchAccountInfo();
+                await fetchData();
+            } catch (error) {
+                showDashboardError(error.message);
+            }
+        }
+
+        async function login() {
+            if (!configLoaded) {
+                showError('Tariff configuration not loaded');
+                return;
+            }
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMessage = document.getElementById('errorMessage');
+
+            if (!email || !password) {
+                showError('Please enter email and password');
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
+            errorMessage.style.display = 'none';
+
+            try {
+                const authResponse = await fetch(`${API_BASE}/auth`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const authData = await authResponse.json();
+                debug('debugPanel', { step: 'auth', response: authData });
+
+                if (authData.error) {
+                    throw new Error(authData.error);
+                }
+
+                authToken = authData.token;
+
+                // Save to session storage
+                sessionStorage.setItem('octopusToken', authToken);
+
+                // Fetch accounts and show selector
+                await fetchAccounts();
+
+            } catch (error) {
+                showError(error.message);
+                debug('debugPanel', { error: error.message });
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            }
+        }
+
+        async function fetchAccountInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/account?accountNumber=${selectedAccountNumber}`, {
+                    method: 'GET',
+                    headers: { 'Authorization': authToken }
+                });
+
+                const data = await response.json();
+                debug('dashboardDebug', { step: 'accountInfo', response: data });
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                accountData = data;
+                return accountData;
+
+            } catch (error) {
+                debug('dashboardDebug', { error: error.message });
+                throw error;
+            }
+        }
+
+        async function fetchMeterData() {
+            const selectedDate = document.getElementById('selectedDate').value;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+
+            try {
+                const propertyId = accountData?.properties?.[0]?.id;
+
+                if (!propertyId) {
+                    throw new Error('No property ID found. Please log in again.');
+                }
+
+                const response = await fetch(
+                    `${API_BASE}/measurements?accountNumber=${selectedAccountNumber}&propertyId=${propertyId}&date=${selectedDate}&frequencyType=RAW_INTERVAL&first=96`,
+                    { headers: { 'Authorization': authToken } }
+                );
+
+                const data = await response.json();
+                debug('dashboardDebug', { step: 'consumption', propertyId, date: selectedDate, response: data });
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (!data.readings || data.readings.length === 0) {
+                    throw new Error(`No consumption data available for ${selectedDate}.`);
+                }
+
+                // Transform to display format
+                const readings = data.readings.map(r => ({
+                    readAt: r.startAt,
+                    endAt: r.endAt,
+                    consumptionDelta: r.value,
+                    unit: r.unit
+                }));
+
+                displayConsumption(readings);
+
+            } catch (error) {
+                showDashboardError(error.message);
+                debug('dashboardDebug', { error: error.message });
+            }
+        }
+
+        async function fetchMonthlyData() {
+            const selectedMonth = document.getElementById('selectedMonth').value;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+
+            try {
+                const propertyId = accountData?.properties?.[0]?.id;
+                if (!propertyId) {
+                    throw new Error('No property ID found. Please log in again.');
+                }
+
+                // Parse selected month
+                const [year, month] = selectedMonth.split('-').map(Number);
+                const daysInMonth = new Date(year, month, 0).getDate();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                // Determine how many days to fetch (don't fetch future days or today)
+                let maxDay = daysInMonth;
+                if (year === today.getFullYear() && month === today.getMonth() + 1) {
+                    maxDay = Math.min(daysInMonth, today.getDate() - 1); // Yesterday at most
+                }
+
+                if (maxDay <= 0) {
+                    throw new Error('No data available for this month (data is ~1 day delayed).');
+                }
+
+                const progressEl = document.getElementById('progressMessage');
+                progressEl.style.display = 'block';
+
+                // Fetch data for each day
+                const allReadings = [];
+                const dailySummaries = [];
+                let successfulDays = 0;
+
+                for (let day = 1; day <= maxDay; day++) {
+                    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    progressEl.textContent = `Loading day ${day} of ${maxDay}...`;
+
+                    try {
+                        const dayReadings = await fetchDayData(propertyId, dateStr, 'HOUR_INTERVAL', 24);
+                        if (dayReadings && dayReadings.length > 0) {
+                            allReadings.push(...dayReadings);
+
+                            // Calculate daily summary
+                            const daySummary = calculateDaySummary(dayReadings, dateStr);
+                            dailySummaries.push(daySummary);
+                            successfulDays++;
+                        }
+                    } catch (e) {
+                        console.log(`No data for ${dateStr}:`, e.message);
+                    }
+
+                    // Small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                progressEl.style.display = 'none';
+
+                if (allReadings.length === 0) {
+                    throw new Error('No consumption data found for this month.');
+                }
+
+                debug('dashboardDebug', {
+                    step: 'monthlyData',
+                    totalReadings: allReadings.length,
+                    daysWithData: successfulDays,
+                    dailySummaries: dailySummaries
+                });
+
+                displayMonthlyData(dailySummaries, selectedMonth);
+
+            } catch (error) {
+                showDashboardError(error.message);
+                debug('dashboardDebug', { error: error.message });
+                document.getElementById('progressMessage').style.display = 'none';
+            }
+        }
+
+        async function fetchDayData(propertyId, dateStr, frequencyType = 'RAW_INTERVAL', firstCount = 96) {
+            const response = await fetch(
+                `${API_BASE}/measurements?accountNumber=${selectedAccountNumber}&propertyId=${propertyId}&date=${dateStr}&frequencyType=${frequencyType}&first=${firstCount}`,
+                { headers: { 'Authorization': authToken } }
+            );
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            if (!data.readings || data.readings.length === 0) {
+                return [];
+            }
+
+            return data.readings.map(r => ({
+                readAt: r.startAt,
+                endAt: r.endAt,
+                consumptionDelta: r.value,
+                unit: r.unit
+            }));
+        }
+
+        function calculateDaySummary(readings, dateStr) {
+            const tariffBreakdown = { low: 0, standard: 0, high: 0 };
+
+            readings.forEach(reading => {
+                const value = parseFloat(reading.consumptionDelta);
+                if (!isNaN(value)) {
+                    const tier = getPriceTier(reading.readAt);
+                    tariffBreakdown[tier] += value;
+                }
+            });
+
+            const costs = {
+                low: (tariffBreakdown.low * TARIFF.low.price) / 100,
+                standard: (tariffBreakdown.standard * TARIFF.standard.price) / 100,
+                high: (tariffBreakdown.high * TARIFF.high.price) / 100
+            };
+
+            return {
+                date: dateStr,
+                consumption: tariffBreakdown,
+                costs: costs,
+                totalConsumption: tariffBreakdown.low + tariffBreakdown.standard + tariffBreakdown.high,
+                totalCost: costs.low + costs.standard + costs.high
+            };
+        }
+
+        function displayMonthlyData(dailySummaries, selectedMonth) {
+            // Hide info message
+            const infoEl = document.getElementById('infoMessage');
+            if (infoEl) infoEl.style.display = 'none';
+
+            // Sort by date
+            const sortedDays = [...dailySummaries].sort((a, b) => a.date.localeCompare(b.date));
+
+            // Calculate monthly totals
+            const monthlyTotals = {
+                consumption: { low: 0, standard: 0, high: 0 },
+                costs: { low: 0, standard: 0, high: 0 },
+                totalConsumption: 0,
+                totalCost: 0
+            };
+
+            sortedDays.forEach(day => {
+                monthlyTotals.consumption.low += day.consumption.low;
+                monthlyTotals.consumption.standard += day.consumption.standard;
+                monthlyTotals.consumption.high += day.consumption.high;
+                monthlyTotals.costs.low += day.costs.low;
+                monthlyTotals.costs.standard += day.costs.standard;
+                monthlyTotals.costs.high += day.costs.high;
+                monthlyTotals.totalConsumption += day.totalConsumption;
+                monthlyTotals.totalCost += day.totalCost;
+            });
+
+            const avgDailyConsumption = sortedDays.length > 0 ? monthlyTotals.totalConsumption / sortedDays.length : 0;
+            const avgDailyCost = sortedDays.length > 0 ? monthlyTotals.totalCost / sortedDays.length : 0;
+            const avgPricePerKwh = monthlyTotals.totalConsumption > 0
+                ? (monthlyTotals.totalCost / monthlyTotals.totalConsumption) * 100 : 0;
+
+            // Update statistics
+            document.getElementById('totalConsumption').textContent = monthlyTotals.totalConsumption.toFixed(2);
+            document.getElementById('totalCost').textContent = monthlyTotals.totalCost.toFixed(2);
+            document.getElementById('avgPrice').textContent = avgPricePerKwh.toFixed(2);
+            document.getElementById('currentConsumption').textContent = avgDailyConsumption.toFixed(2);
+
+            // Update the label for monthly view
+            document.querySelector('.stat-card:nth-child(4) h3').textContent = 'Avg per day';
+
+            // Update tariff breakdown
+            document.getElementById('lowConsumption').textContent = monthlyTotals.consumption.low.toFixed(2) + ' kWh';
+            document.getElementById('lowCost').textContent = monthlyTotals.costs.low.toFixed(2) + ' €';
+            document.getElementById('standardConsumption').textContent = monthlyTotals.consumption.standard.toFixed(2) + ' kWh';
+            document.getElementById('standardCost').textContent = monthlyTotals.costs.standard.toFixed(2) + ' €';
+            document.getElementById('highConsumption').textContent = monthlyTotals.consumption.high.toFixed(2) + ' kWh';
+            document.getElementById('highCost').textContent = monthlyTotals.costs.high.toFixed(2) + ' €';
+
+            // Update chart with daily data
+            updateMonthlyChart(sortedDays, avgDailyCost);
+
+            // Update table with daily data
+            updateMonthlyTable(sortedDays, avgDailyCost);
+
+            // Update last refresh time
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+        }
+
+        function updateMonthlyChart(dailySummaries, avgDailyCost) {
+            const ctx = document.getElementById('consumptionChart').getContext('2d');
+
+            const labels = dailySummaries.map(d => {
+                const date = new Date(d.date);
+                return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+            });
+
+            // Stacked bar data for each tariff tier
+            const lowData = dailySummaries.map(d => d.costs.low);
+            const standardData = dailySummaries.map(d => d.costs.standard);
+            const highData = dailySummaries.map(d => d.costs.high);
+
+            if (consumptionChart) {
+                consumptionChart.destroy();
+            }
+
+            consumptionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: `Low (${TARIFF.low.price} ct)`,
+                            data: lowData,
+                            backgroundColor: 'rgba(74, 222, 128, 0.8)',
+                            borderColor: '#4ade80',
+                            borderWidth: 1
+                        },
+                        {
+                            label: `Standard (${TARIFF.standard.price} ct)`,
+                            data: standardData,
+                            backgroundColor: 'rgba(251, 191, 36, 0.8)',
+                            borderColor: '#fbbf24',
+                            borderWidth: 1
+                        },
+                        {
+                            label: `High (${TARIFF.high.price} ct)`,
+                            data: highData,
+                            backgroundColor: 'rgba(248, 113, 113, 0.8)',
+                            borderColor: '#f87171',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: { color: '#aaa' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterBody: function(context) {
+                                    const idx = context[0].dataIndex;
+                                    const day = dailySummaries[idx];
+                                    return [
+                                        '',
+                                        `Total: ${day.totalCost.toFixed(2)} EUR`,
+                                        `Consumption: ${day.totalConsumption.toFixed(2)} kWh`
+                                    ];
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                averageLine: {
+                                    type: 'line',
+                                    yMin: avgDailyCost,
+                                    yMax: avgDailyCost,
+                                    borderColor: '#ff69b4',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        display: true,
+                                        content: `Avg ${avgDailyCost.toFixed(2)} EUR`,
+                                        color: '#ff69b4',
+                                        position: 'end'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            stacked: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: {
+                                color: '#aaa',
+                                callback: function(value) { return value.toFixed(2) + ' €'; }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Cost (EUR)',
+                                color: '#aaa'
+                            }
+                        },
+                        x: {
+                            stacked: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#aaa' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateMonthlyTable(dailySummaries, avgDailyCost) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+
+            dailySummaries.forEach(day => {
+                const date = new Date(day.date);
+                const isAboveAvg = day.totalCost > avgDailyCost * 1.2;
+                const isBelowAvg = day.totalCost < avgDailyCost * 0.8;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${date.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit' })}</td>
+                    <td>${day.totalConsumption.toFixed(2)} kWh</td>
+                    <td>
+                        <span style="color: #4ade80">${day.consumption.low.toFixed(1)}</span> /
+                        <span style="color: #fbbf24">${day.consumption.standard.toFixed(1)}</span> /
+                        <span style="color: #f87171">${day.consumption.high.toFixed(1)}</span>
+                    </td>
+                    <td class="${isBelowAvg ? 'consumption-low' : isAboveAvg ? 'consumption-high' : ''}">${day.totalCost.toFixed(2)} EUR</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update table headers for monthly view
+            const thead = tbody.parentElement.querySelector('thead tr');
+            thead.innerHTML = `
+                <th>Day</th>
+                <th>Consumption</th>
+                <th>L / S / H (kWh)</th>
+                <th>Cost</th>
+            `;
+        }
+
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function showDashboardError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+
+            const infoEl = document.getElementById('infoMessage');
+            if (infoEl) {
+                infoEl.textContent = message;
+                infoEl.style.display = 'block';
+                infoEl.style.background = 'rgba(255, 0, 0, 0.2)';
+                infoEl.style.borderColor = '#ff4444';
+                infoEl.style.color = '#ff6666';
+            }
+
+            // Clear stats
+            document.getElementById('totalConsumption').textContent = '--';
+            document.getElementById('totalCost').textContent = '--';
+            document.getElementById('avgPrice').textContent = '--';
+            document.getElementById('currentConsumption').textContent = '--';
+            document.getElementById('lowConsumption').textContent = '-- kWh';
+            document.getElementById('lowCost').textContent = '-- €';
+            document.getElementById('standardConsumption').textContent = '-- kWh';
+            document.getElementById('standardCost').textContent = '-- €';
+            document.getElementById('highConsumption').textContent = '-- kWh';
+            document.getElementById('highCost').textContent = '-- €';
+
+            // Clear chart
+            if (consumptionChart) {
+                consumptionChart.destroy();
+                consumptionChart = null;
+            }
+
+            // Clear table
+            document.getElementById('dataTableBody').innerHTML = '';
+        }
+
+        function showDashboard() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('visible');
+        }
+
+        function logout() {
+            authToken = null;
+            accountData = null;
+            selectedAccountNumber = null;
+            sessionStorage.removeItem('octopusToken');
+            sessionStorage.removeItem('octopusAccount');
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('accountSelector').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('visible');
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function displayConsumption(readings, infoMessage = null) {
+            // Debug: show raw data structure
+            debug('dashboardDebug', { step: 'displayConsumption', sampleReading: readings[0], totalReadings: readings.length });
+
+            // Show info message if provided
+            const infoEl = document.getElementById('infoMessage');
+            if (infoMessage && infoEl) {
+                infoEl.textContent = infoMessage;
+                infoEl.style.display = 'block';
+                // Reset to info styling (not error)
+                infoEl.style.background = 'rgba(255, 165, 0, 0.2)';
+                infoEl.style.borderColor = '#ffa500';
+                infoEl.style.color = '#ffcc66';
+            } else if (infoEl) {
+                infoEl.style.display = 'none';
+            }
+
+            // Reset table headers for daily view
+            const thead = document.querySelector('#dataTableBody').parentElement.querySelector('thead tr');
+            thead.innerHTML = `
+                <th>Time</th>
+                <th>Consumption</th>
+                <th>Tariff</th>
+                <th>Cost</th>
+            `;
+
+            // Reset stat card label for daily view
+            document.querySelector('.stat-card:nth-child(4) h3').textContent = 'Last Interval';
+
+            // Sort by time
+            const sortedReadings = [...readings].sort((a, b) =>
+                new Date(a.readAt) - new Date(b.readAt)
+            );
+
+            // Parse values as floats
+            const consumptionValues = sortedReadings
+                .map(r => parseFloat(r.consumptionDelta))
+                .filter(v => !isNaN(v));
+
+            if (consumptionValues.length === 0) {
+                showError('No consumption values available');
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+            const totalConsumption = consumptionValues.reduce((a, b) => a + b, 0);
+            const avgConsumption = totalConsumption / consumptionValues.length;
+
+            // Calculate tariff breakdown
+            const tariffBreakdown = { low: 0, standard: 0, high: 0 };
+            sortedReadings.forEach(reading => {
+                const value = parseFloat(reading.consumptionDelta);
+                if (!isNaN(value)) {
+                    const tier = getPriceTier(reading.readAt);
+                    tariffBreakdown[tier] += value;
+                }
+            });
+
+            // Calculate costs (convert ct to EUR)
+            const costs = {
+                low: (tariffBreakdown.low * TARIFF.low.price) / 100,
+                standard: (tariffBreakdown.standard * TARIFF.standard.price) / 100,
+                high: (tariffBreakdown.high * TARIFF.high.price) / 100
+            };
+            const totalCost = costs.low + costs.standard + costs.high;
+            const avgPricePerKwh = totalConsumption > 0 ? (totalCost / totalConsumption) * 100 : 0;
+
+            // Get latest reading
+            const latestReading = sortedReadings[sortedReadings.length - 1];
+            const latestValue = parseFloat(latestReading.consumptionDelta);
+
+            // Update statistics
+            document.getElementById('totalConsumption').textContent = totalConsumption.toFixed(2);
+            document.getElementById('totalCost').textContent = totalCost.toFixed(2);
+            document.getElementById('avgPrice').textContent = avgPricePerKwh.toFixed(2);
+            document.getElementById('currentConsumption').textContent =
+                !isNaN(latestValue) ? latestValue.toFixed(3) : '--';
+
+            // Update tariff breakdown
+            document.getElementById('lowConsumption').textContent = tariffBreakdown.low.toFixed(2) + ' kWh';
+            document.getElementById('lowCost').textContent = costs.low.toFixed(2) + ' €';
+            document.getElementById('standardConsumption').textContent = tariffBreakdown.standard.toFixed(2) + ' kWh';
+            document.getElementById('standardCost').textContent = costs.standard.toFixed(2) + ' €';
+            document.getElementById('highConsumption').textContent = tariffBreakdown.high.toFixed(2) + ' kWh';
+            document.getElementById('highCost').textContent = costs.high.toFixed(2) + ' €';
+
+            // Update chart
+            updateChart(sortedReadings, avgConsumption);
+
+            // Update table
+            updateTable(sortedReadings, avgConsumption);
+
+            // Update last refresh time
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+        }
+
+        function updateChart(readings, avgConsumption) {
+            const ctx = document.getElementById('consumptionChart').getContext('2d');
+
+            const labels = readings.map(r => {
+                const date = new Date(r.readAt);
+                return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            });
+
+            const data = readings.map(r => parseFloat(r.consumptionDelta) || 0);
+
+            // Color bars by tariff tier
+            const backgroundColors = readings.map(r => {
+                const tier = getPriceTier(r.readAt);
+                if (tier === 'low') return 'rgba(74, 222, 128, 0.6)';
+                if (tier === 'high') return 'rgba(248, 113, 113, 0.6)';
+                return 'rgba(251, 191, 36, 0.6)';
+            });
+
+            const borderColors = readings.map(r => {
+                const tier = getPriceTier(r.readAt);
+                return TARIFF[tier].color;
+            });
+
+            if (consumptionChart) {
+                consumptionChart.destroy();
+            }
+
+            consumptionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Consumption (kWh)',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#aaa'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#aaa',
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTable(readings, avgConsumption) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+
+            const now = new Date();
+
+            readings.forEach(reading => {
+                const readAt = new Date(reading.readAt);
+                const consumption = parseFloat(reading.consumptionDelta);
+
+                // Get price tier
+                const tier = getPriceTier(reading.readAt);
+                const tariff = TARIFF[tier];
+                const cost = !isNaN(consumption) ? (consumption * tariff.price) / 100 : 0;
+
+                // Check if this is the current 15-min interval
+                const diffMinutes = (now - readAt) / (1000 * 60);
+                const isCurrent = diffMinutes >= 0 && diffMinutes < 15;
+
+                let consumptionClass = 'consumption-mid';
+                if (!isNaN(consumption)) {
+                    if (consumption <= avgConsumption * 0.5) consumptionClass = 'consumption-low';
+                    else if (consumption >= avgConsumption * 1.5) consumptionClass = 'consumption-high';
+                }
+
+                const row = document.createElement('tr');
+                if (isCurrent) row.classList.add('current-time');
+
+                row.innerHTML = `
+                    <td>${readAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td class="${consumptionClass}">${!isNaN(consumption) ? consumption.toFixed(3) + ' kWh' : '--'}</td>
+                    <td style="color: ${tariff.color}">${tariff.label} (${tariff.price} ct)</td>
+                    <td>${!isNaN(consumption) ? cost.toFixed(4) + ' EUR' : '--'}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>

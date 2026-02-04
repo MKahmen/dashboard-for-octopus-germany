@@ -1,0 +1,16 @@
+{
+  "name": "dashboard-for-octopus-germany",
+  "version": "1.0.0",
+  "description": "A smart meter dashboard for Octopus Energy Germany customers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marius/dashboard-for-octopus-germany"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  }
+}
