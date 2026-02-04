@@ -13,6 +13,8 @@ https://octopus.mkay.io
 
 Uses the example tariff prices: Low 18.49 ct/kWh, Standard 26.49 ct/kWh, High 30.49 ct/kWh.
 
+![Screenshot](screenshot.webp)
+
 ## Features
 
 - View daily consumption in 15-minute intervals
