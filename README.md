@@ -2,12 +2,16 @@
 
 A smart meter dashboard for Octopus Energy Germany customers to view consumption data and costs.
 
-**Hosted version:** https://octopus.mkay.io
-
 **Note:** This software is specifically designed for the Octopus Energy Germany **Heat tariff** with its three price tiers.
 
 This project uses the Octopus Energy Germany GraphQL API as described here:
 https://octopusenergy.de/blog/ratgeber/auf-der-suche-nach-deutschen-energie-vorreitern
+
+## Live Demo
+
+https://octopus.mkay.io
+
+Uses the example tariff prices: Low 18.49 ct/kWh, Standard 26.49 ct/kWh, High 30.49 ct/kWh.
 
 ## Features
 
