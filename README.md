@@ -2,6 +2,8 @@
 
 A smart meter dashboard for Octopus Energy Germany customers to view consumption data and costs.
 
+**Hosted version:** https://octopus.mkay.io
+
 **Note:** This software is specifically designed for the Octopus Energy Germany **Heat tariff** with its three price tiers.
 
 This project uses the Octopus Energy Germany GraphQL API as described here:
